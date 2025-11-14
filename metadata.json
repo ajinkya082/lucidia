@@ -1,0 +1,9 @@
+{
+  "name": "Lucidia - AI Dementia Care",
+  "description": "An AI-powered system to assist individuals with Alzheimer's and dementia, and their caregivers. It helps with memory recall, facial recognition, reminders, and safety monitoring.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
