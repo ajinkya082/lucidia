@@ -1,40 +1,37 @@
 
 import { create } from 'zustand';
 import { Alert } from '../types';
-
-const mockAlerts: Alert[] = [
-    { id: '1', type: 'SOS', message: 'SOS button pressed near 123 Main St.', timestamp: new Date(Date.now() - 1000 * 60 * 5).toISOString(), isRead: false },
-    { id: '2', type: 'SafeZoneExit', message: 'Left "Home" safe zone.', timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(), isRead: false },
-    { id: '3', type: 'SafeZoneExit', message: 'Left "Community Center" safe zone.', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), isRead: true },
-];
-
+import { useAuthStore } from './authStore';
+import { listenToAlerts, addAlertDoc, updateAlertDoc } from '../backend/db';
 
 interface AlertState {
   alerts: Alert[];
-  addAlert: (alertData: Omit<Alert, 'id' | 'timestamp' | 'isRead'>) => void;
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
+  addAlert: (alertData: Omit<Alert, 'id' | 'timestamp' | 'isRead'>) => Promise<void>;
+  markAsRead: (id: string) => Promise<void>;
+  markAllAsRead: () => Promise<void>;
+  init: () => () => void;
 }
 
-export const useAlertStore = create<AlertState>((set) => ({
-  alerts: mockAlerts.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()),
-  addAlert: (alertData) => {
-    const newAlert: Alert = {
-        id: `alert-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        isRead: false,
-        ...alertData
-    };
-    set((state) => ({ alerts: [newAlert, ...state.alerts] }));
+export const useAlertStore = create<AlertState>((set, get) => ({
+  alerts: [],
+  addAlert: async (alertData) => {
+    const user = useAuthStore.getState().user;
+    if (!user) return;
+    const targetId = user.role === 'patient' ? user.id : user.patientId!;
+    await addAlertDoc({ ...alertData, ownerId: targetId });
   },
-  markAsRead: (id: string) => {
-    set((state) => ({
-        alerts: state.alerts.map(a => a.id === id ? { ...a, isRead: true } : a)
-    }));
+  markAsRead: async (id) => {
+    await updateAlertDoc(id, { isRead: true });
   },
-  markAllAsRead: () => {
-    set((state) => ({
-        alerts: state.alerts.map(a => ({ ...a, isRead: true }))
-    }));
+  markAllAsRead: async () => {
+    const alerts = get().alerts;
+    const promises = alerts.map(a => !a.isRead ? updateAlertDoc(a.id, { isRead: true }) : Promise.resolve());
+    await Promise.all(promises);
   },
+  init: () => {
+    const user = useAuthStore.getState().user;
+    if (!user) return () => {};
+    const targetId = user.role === 'patient' ? user.id : user.patientId!;
+    return listenToAlerts(targetId, (alerts) => set({ alerts }));
+  }
 }));

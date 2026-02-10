@@ -1,53 +1,140 @@
-import React from 'react';
+
+import React, { useState } from 'react';
 import Button from '../components/ui/Button';
 import { useNavigate } from 'react-router-dom';
+import { useMemoryStore } from '../store/memoryStore';
+import { CameraIcon } from '../components/icons/Icons';
 
 const AddMemoryPage: React.FC = () => {
     const navigate = useNavigate();
+    const { addMemory } = useMemoryStore();
+    
+    const [title, setTitle] = useState('');
+    const [date, setDate] = useState('');
+    const [description, setDescription] = useState('');
+    const [tags, setTags] = useState('');
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [loading, setLoading] = useState(false);
+
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.files && e.target.files[0]) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setImagePreview(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            await addMemory({
+                title,
+                date: new Date(date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+                description,
+                imageUrl: imagePreview || undefined,
+                tags: tags.split(',').map(t => t.trim()).filter(t => t !== ''),
+            });
+            navigate('/memories');
+        } catch (error) {
+            console.error("Failed to add memory:", error);
+            alert("Error saving memory. Please try again.");
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
-        <div>
-            <h1 className="text-4xl font-bold text-brand-text mb-8">Add New Memory</h1>
-            <div className="max-w-2xl mx-auto bg-brand-surface/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg">
-                <form className="space-y-6">
-                     <div>
-                        <label htmlFor="title" className="block text-sm font-medium text-brand-text-light">Title</label>
-                        <input type="text" id="title" className="form-input" placeholder="Title of the memory"/>
-                    </div>
-                    
-                    <div>
-                        <label htmlFor="date" className="block text-sm font-medium text-brand-text-light">Date</label>
-                        <input type="date" id="date" className="form-input"/>
-                    </div>
+        <div className="max-w-3xl mx-auto">
+            <h1 className="text-4xl font-bold text-brand-text mb-8">New Memory</h1>
+            <div className="bg-brand-surface/80 backdrop-blur-sm p-10 rounded-[2.5rem] shadow-2xl border border-white">
+                <form className="space-y-6" onSubmit={handleSubmit}>
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        <div className="space-y-6">
+                            <div>
+                                <label htmlFor="title" className="block text-sm font-bold text-brand-text-light mb-2">Title</label>
+                                <input 
+                                    type="text" 
+                                    id="title" 
+                                    className="form-input py-4" 
+                                    placeholder="e.g., Wedding Anniversary"
+                                    value={title}
+                                    onChange={e => setTitle(e.target.value)}
+                                    required
+                                />
+                            </div>
+                            
+                            <div>
+                                <label htmlFor="date" className="block text-sm font-bold text-brand-text-light mb-2">When did it happen?</label>
+                                <input 
+                                    type="date" 
+                                    id="date" 
+                                    className="form-input py-4"
+                                    value={date}
+                                    onChange={e => setDate(e.target.value)}
+                                    required
+                                />
+                            </div>
 
-                    <div>
-                        <label htmlFor="description" className="block text-sm font-medium text-brand-text-light">Description</label>
-                        <textarea id="description" rows={4} className="form-input" placeholder="Describe the memory..."></textarea>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-brand-text-light">Image (Optional)</label>
-                        <div className="mt-2 flex items-center">
-                           <span className="inline-block h-12 w-12 rounded-full overflow-hidden bg-gray-100">
-                                <svg className="h-full w-full text-gray-300" fill="currentColor" viewBox="0 0 24 24">
-                                    <path d="M24 20.993V24H0v-2.993A1 1 0 001 20h22a1 1 0 001-1.007zM12 12a4 4 0 100-8 4 4 0 000 8z" />
-                                </svg>
-                           </span>
-                           <label htmlFor="file-upload" className="ml-5 bg-white py-2 px-3 border border-gray-300 rounded-xl shadow-sm text-sm leading-4 font-medium text-gray-700 hover:bg-gray-50 focus:outline-none cursor-pointer">
-                               <span>Upload a file</span>
-                               <input id="file-upload" name="file-upload" type="file" className="sr-only" />
-                            </label>
+                            <div>
+                                <label htmlFor="tags" className="block text-sm font-bold text-brand-text-light mb-2">Categories (comma separated)</label>
+                                <input 
+                                    type="text" 
+                                    id="tags" 
+                                    className="form-input py-4" 
+                                    placeholder="family, travel, 1980s"
+                                    value={tags}
+                                    onChange={e => setTags(e.target.value)}
+                                />
+                            </div>
                         </div>
-                    </div>
-                    
+
+                        <div>
+                            <label className="block text-sm font-bold text-brand-text-light mb-2">Memorable Photo</label>
+                            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-3xl h-full min-h-[250px] relative overflow-hidden group">
+                                {imagePreview ? (
+                                    <img src={imagePreview} alt="Preview" className="absolute inset-0 w-full h-full object-cover" />
+                                ) : (
+                                    <div className="space-y-1 text-center self-center">
+                                        <div className="mx-auto h-12 w-12 text-gray-400">
+                                            <CameraIcon />
+                                        </div>
+                                        <div className="flex text-sm text-gray-600">
+                                            <label htmlFor="file-upload" className="relative cursor-pointer bg-white rounded-md font-medium text-brand-primary hover:text-brand-secondary">
+                                                <span>Upload a photo</span>
+                                                <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={handleImageChange} accept="image/*" />
+                                            </label>
+                                        </div>
+                                    </div>
+                                )}
+                                {imagePreview && (
+                                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <label htmlFor="file-upload" className="cursor-pointer text-white font-bold underline">Change Photo</label>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                     </div>
+
                     <div>
-                        <label htmlFor="tags" className="block text-sm font-medium text-brand-text-light">Tags</label>
-                        <input type="text" id="tags" className="form-input" placeholder="family, travel, holiday (comma separated)"/>
+                        <label htmlFor="description" className="block text-sm font-bold text-brand-text-light mb-2">Describe the moment</label>
+                        <textarea 
+                            id="description" 
+                            rows={4} 
+                            className="form-input py-4" 
+                            placeholder="Write a short story about this memory..."
+                            value={description}
+                            onChange={e => setDescription(e.target.value)}
+                            required
+                        ></textarea>
                     </div>
 
-                    <div className="flex justify-end space-x-4 pt-4">
-                        <Button type="button" variant="secondary" onClick={() => navigate('/memories')} size="lg">Cancel</Button>
-                        <Button type="submit" size="lg">Save Memory</Button>
+                    <div className="flex justify-end space-x-4 pt-8">
+                        <Button type="button" variant="secondary" onClick={() => navigate('/memories')} size="lg" className="px-8 rounded-2xl">Cancel</Button>
+                        <Button type="submit" size="lg" className="px-10 rounded-2xl shadow-xl" loading={loading}>Save Story</Button>
                     </div>
                 </form>
             </div>

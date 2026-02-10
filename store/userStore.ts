@@ -1,52 +1,26 @@
 
 import { create } from 'zustand';
-import { User, UserRole } from '../types';
-
-const mockPatient: User = {
-  id: 'patient-1',
-  name: 'John Doe',
-  email: 'john.doe@example.com',
-  role: UserRole.PATIENT,
-  patientCode: 'JOHNDO',
-};
-
-const mockCaretaker: User = {
-  id: 'caretaker-1',
-  name: 'Jane Smith',
-  email: 'jane.smith@example.com',
-  role: UserRole.CARETAKER,
-  patientId: 'patient-1',
-};
-
+import { User } from '../types';
+import { setUserDoc, updateUserDoc, findPatientByCode } from '../backend/db';
 
 interface UserState {
-  users: User[];
-  addUser: (user: Omit<User, 'id'>) => User;
-  updateUser: (updatedUser: User) => void;
-  findUserByPatientCode: (code: string) => User | undefined;
-  findUserByRole: (role: UserRole) => User | undefined;
+  addUser: (uid: string, userData: Omit<User, 'id'>) => Promise<User>;
+  updateUser: (updatedUser: User) => Promise<void>;
+  findUserByPatientCode: (code: string) => Promise<User | null>;
 }
 
-export const useUserStore = create<UserState>((set, get) => ({
-  users: [mockPatient, mockCaretaker],
-  addUser: (userData) => {
-    const newUser: User = {
-      id: `user-${Date.now()}-${Math.random()}`,
-      ...userData,
-    };
-    set((state) => ({ users: [...state.users, newUser] }));
+export const useUserStore = create<UserState>(() => ({
+  addUser: async (uid, userData) => {
+    const newUser: User = { id: uid, ...userData };
+    await setUserDoc(uid, newUser);
     return newUser;
   },
-  updateUser: (updatedUser) => {
-    set((state) => ({
-      users: state.users.map(u => u.id === updatedUser.id ? updatedUser : u),
-    }));
+  updateUser: async (updatedUser) => {
+    const { id, ...data } = updatedUser;
+    await updateUserDoc(id, data);
   },
-  findUserByPatientCode: (code: string) => {
-    return get().users.find(u => u.role === UserRole.PATIENT && u.patientCode === code.toUpperCase());
+  findUserByPatientCode: async (code: string) => {
+    const user = await findPatientByCode(code.toUpperCase());
+    return user as User | null;
   },
-  findUserByRole: (role: UserRole) => {
-    const usersOfRole = get().users.filter(u => u.role === role);
-    return usersOfRole[usersOfRole.length - 1]; // return last registered user of that role
-  }
 }));

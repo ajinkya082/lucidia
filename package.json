@@ -13,7 +13,9 @@
     "react-dom": "^19.2.0",
     "framer-motion": "^12.23.24",
     "react-router-dom": "^7.9.6",
-    "zustand": "^5.0.8"
+    "zustand": "^5.0.8",
+    "@google/genai": "^1.40.0",
+    "firebase": "^12.9.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
